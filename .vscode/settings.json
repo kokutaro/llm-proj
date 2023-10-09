@@ -1,0 +1,9 @@
+{
+  "python.analysis.typeCheckingMode": "off",
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.indentSize": "tabSize",
+    "editor.tabSize": 4,
+    "editor.formatOnSave": true,
+  }
+}
