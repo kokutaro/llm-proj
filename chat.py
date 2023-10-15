@@ -2,6 +2,7 @@ import os
 import io
 import torch
 import chainlit as cl
+import db_util
 from uuid import uuid4
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import PGVector
@@ -18,7 +19,7 @@ from doc_loader import load_pdf, load_docx
 
 MODEL_NAME = "intfloat/multilingual-e5-large"
 LLM_NAME = "rinna/japanese-gpt-neox-3.6b-instruction-ppo"
-TEMP_DIRECTORY = "temp"
+TEMP_DIRECTORY = "tmp"
 
 max_size_mb = int(os.environ.get("MAX_SIZE_MB", 10))
 max_files = int(os.environ.get("MAX_FILES", 4))
@@ -31,6 +32,7 @@ if not os.path.exists(TEMP_DIRECTORY):
 template = """ユーザーの質問に答えるために、以下の文脈の一部を使用して回答を生成してください。
 答えがわからない場合は、ただわからないと言い、答えを作ろうとしないでください。
 回答には必ず "SOURCES" の部分を返してください。"PAGE"の部分があれば、それも返してください。
+"IMAGE"の部分があれば、markdown形式で出力してください。
 "SOURCES"の部分は、あなたが答えを得た文書の出典を示すものでなければなりません。
 回答例
 
@@ -39,6 +41,7 @@ template = """ユーザーの質問に答えるために、以下の文脈の一
 ○○○○
 SOURCES: xyz
 PAGE: 23
+![4961c513-4fff-4b4b-9657-3dd2ef3b6dbb.png](img/4961c513-4fff-4b4b-9657-3dd2ef3b6dbb.png)
 ---
 
 開始
@@ -48,14 +51,7 @@ PAGE: 23
 
 template = template.replace("\n", "<NL>")
 
-connection_string = PGVector.connection_string_from_db_params(
-    driver=os.environ.get("POSTGRES_DB_DRIVER", "psycopg2"),
-    host=os.environ.get("POSTGRES_DB_HOST", "localhost"),
-    port=int(os.environ.get("POSTGRES_DB_PORT", "5432")),
-    database=os.environ.get("POSTGRES_DB", "postgres"),
-    user=os.environ.get("POSTGRES_USER", "postgres"),
-    password=os.environ.get("POSTGRES_PASSWORD", "postgres"),
-)
+connection_string = db_util.get_connection_string()
 
 model_kwargs = {"device": "cuda"}
 
@@ -140,7 +136,7 @@ async def start():
 
         # Initialize the text variable
         texts = []
-        temp_path = os.path.join("temp", str(uuid4()))
+        temp_path = os.path.join("tmp", str(uuid4()))
         if not os.path.exists(temp_path):
             os.mkdir(temp_path)
 
