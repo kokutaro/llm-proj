@@ -1,7 +1,10 @@
 # Project specific files / directories
 
 temp/
+tmp/
 out/
+uploads/
+img/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
