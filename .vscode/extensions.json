@@ -1,0 +1,18 @@
+{
+  "recommendations": [
+    "ckolkman.vscode-postgres",
+    "DavidAnson.vscode-markdownlint",
+    "DotJoshJohnson.xml",
+    "ms-azuretools.vscode-docker",
+    "MS-CEINTL.vscode-language-pack-ja",
+    "ms-python.black-formatter",
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "njpwerner.autodocstring",
+    "redhat.vscode-xml",
+    "ritwickdey.LiveServer",
+    "shd101wyy.markdown-preview-enhanced",
+    "TakumiI.markdowntable",
+    "yzhang.markdown-all-in-one"
+  ]
+}
