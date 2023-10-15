@@ -88,17 +88,16 @@ def load_wiki(
 def _get_img_infos(file_path: str, tmp_path: str) -> List[Dict]:
     """
     Excel内の画像を保存し、画像のパスとセルの番地を返す
-
     Args:
         file_path (str): Excelファイルへのパス
         tmp_path (str): 作業フォルダ
-
     Returns:
         List[Dict]: 画像のパスとセルの番地
     """
 
     drawing_path = f"{tmp_path}/xl/drawings"
 
+    # Excelファイルを一時ディレクトリに解凍
     with zipfile.ZipFile(file_path, "r") as zip_ref:
         zip_ref.extractall(tmp_path)
 
@@ -106,10 +105,12 @@ def _get_img_infos(file_path: str, tmp_path: str) -> List[Dict]:
     shape_infos = []
     for i, d in enumerate(drawings):
         for autoshape in _enumerate_autoshapes(d):
+            # 画像の座標を取得
             from_col = int(autoshape.find("./xdr:from/xdr:col", NS).text)
             from_row = int(autoshape.find("./xdr:from/xdr:row", NS).text)
             shape_coord = np.asarray([from_row, from_col]) + 1
 
+            # 画像の情報を取得してリストに追加
             for emb in autoshape.findall(".//a:blip", NS):
                 rId = emb.attrib[EMB_KEY]
 
@@ -139,6 +140,8 @@ def _get_img_infos(file_path: str, tmp_path: str) -> List[Dict]:
                 )
 
                 print(img_path, shape_coord, cx, cy)
+
+            # テキストの情報を取得してリストに追加
             texts = []
             for tx_body in autoshape.findall(".//xdr:txBody", NS):
                 paragraphs = [para for para in tx_body.findall(".//a:p", NS)]
@@ -156,23 +159,33 @@ def _get_img_infos(file_path: str, tmp_path: str) -> List[Dict]:
 
 
 def load_xlsx(file_path: str, uuid: str) -> List[Document]:
+    # 画像を保存するディレクトリがなければ作成
     if not os.path.exists("img"):
         os.mkdir("img")
+
+    # 作業ディレクトリの設定
     work_dir = "tmp/work"
     tmp_path = os.path.join(work_dir, file_path)
+
+    # 画像の情報を取得
     shape_infos = _get_img_infos(file_path, tmp_path)
 
+    # Excelファイルを開く
     workbook = openpyxl.load_workbook(file_path, data_only=True)
     documents = []
+
+    # 各シートに対して処理
     for sheet_name in workbook.sheetnames:
         sheet = workbook[sheet_name]
         print(f"Processing sheet: {sheet_name}")
 
+        # テキストの情報を取得
         cell_values = [
             {"value": x["text"], "coord": x["coord"]}
             for x in filter(lambda x: x["type"] == "text", shape_infos)
         ]
 
+        # セルの値とその座標を取得
         for row in sheet.iter_rows():
             for cell in row:
                 if cell.value is None or len(str(cell.value)) == 0:
@@ -184,12 +197,16 @@ def load_xlsx(file_path: str, uuid: str) -> List[Document]:
         for cell_value in cell_values:
             cell_value["i"] = cell_value["coord"].tolist()
 
+        # 座標でソート
         cell_values = sorted(cell_values, key=lambda x: x["i"])
 
         coords = [cell_value["coord"] for cell_value in cell_values]
+
+        # 最も近いノードを取得
         closest_nodes = [
             _get_closest_node_index(node["coord"], coords) for node in shape_infos
         ]
+
         lines_with_img_path = []
         metadata = {
             "source": file_path.split("/")[-1],
@@ -205,9 +222,9 @@ def load_xlsx(file_path: str, uuid: str) -> List[Document]:
                     img_path = shape_info["img_path"]
                     metadata["img_path"] = img_path
                     cell_value["value"] += f"\n![img_name]({img_path})"
-
             lines_with_img_path.append(cell_value["value"])
 
+        # ドキュメントを作成
         page_content = "\n".join(lines_with_img_path)
         documents.append(
             Document(
@@ -215,6 +232,7 @@ def load_xlsx(file_path: str, uuid: str) -> List[Document]:
             )
         )
 
+    # 作業ディレクトリの削除
     shutil.rmtree(work_dir)
 
     return documents
@@ -238,6 +256,7 @@ def _get_rel_img(file_path: str, i: int, rId: str) -> str:
     tree = ET.parse(rel_path)
     root = tree.getroot()
 
+    # 画像の関連ファイルのパスを取得
     for rel in root.findall("./x:Relationship", NS):
         if rel.attrib["Id"] == rId:
             return rel.attrib["Target"]
@@ -246,13 +265,12 @@ def _get_rel_img(file_path: str, i: int, rId: str) -> str:
 def _enumerate_autoshapes(xml_path: str):
     """
     オートシェイプの情報を列挙する
-
     Args:
         xml_path (str): drawing情報を含むXMLファイルへのパス
-
     Yields:
         Element: オートシェイプ情報
     """
+
     tree = ET.parse(xml_path)
     root = tree.getroot()
     for anchor in ANCHOR_LIST:
@@ -261,6 +279,7 @@ def _enumerate_autoshapes(xml_path: str):
 
 
 def _get_closest_node_index(node, nodes) -> int:
+    # 与えられたノードに最も近いノードのインデックスを返す
     closest_index = distance.cdist([node], nodes).argmin()
     return closest_index
 
